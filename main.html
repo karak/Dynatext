@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>無題ドキュメント</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="css/bootstrap.css" media="screen">
+<link rel="stylesheet" href="css/bootstrap-responsive.css">
+<script type="text/javascript" src="js/jquery-2.0.2.min.js"></script>
+<script type="text/javascript" src="js/knockout-2.2.1.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript">
+
+function DocumentViewModel() {
+	this.title = ko.observable('My great research');
+	this.abstract = ko.observable('コンピュータ科学の世界で何かものすごい発見をして\n四十歳までにチューリング賞をもらう');
+}
+
+$(function () {
+ko.applyBindings(
+	new DocumentViewModel(), 
+	document.getElementById('editor'));
+});
+</script>
+<style type="text/css">
+body {
+	font-family: Helvetica, "ヒラギノ角ゴ ProN W3", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, Osaka, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+	
+}
+
+h1.header-normal {
+	font-size: 12pt;
+	font-weight: bolder;
+	margin-top: 0.5ex;
+	margin-bottom: 0.5ex;
+	height: 12pt;
+	line-height: 12pt;
+}
+
+.plaintext {
+	font-size: 10.5pt;
+	line-height: 150%;
+	font-weight: normal;
+	white-space: pre-wrap;
+}
+
+</style>
+</head>
+
+<body>
+<div class="navbar navbar-inverse navbar-static-top">
+	<div class="navbar-inner">
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div class="span12">
+            <ul class="breadcrumb">
+              <li><a href="#">Home</a> <span class="divider">/</span></li>
+              <li><a href="#">Library</a> <span class="divider">/</span></li>
+              <li class="active">Data</li>
+            </ul>
+        </div>
+    </div>
+    <div class="row-fluid" style="margin-bottom: 8mm">
+        <div class="span12">
+            <div id="editor">
+                <h1 class="header-normal" data-bind="text:title"></h1>
+                <div class="plaintext" data-bind="text: abstract"></div>
+            </div>
+        </div>
+    </div>
+    <div class="row-fluid">
+        <div class="span12">
+            <ul class="nav nav-tabs">
+              <li><a href="#">Home</a></li>
+              <li class="active"><a href="#">Task #1</a></li>
+              <li><a href="#">Task #2</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="row-fluid">
+        <div class="btn-group">
+          <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+        	<i class="icon-file"></i>
+            note 1
+            <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu">
+            <li><a href="#" tabIndex="-1">note 1</a></li>
+            <li><a href="#" tabIndex="-1">note 2</a></li>
+            <li><a href="#" tabIndex="-1">note 3</a></li>
+            <li><a href="#" tabIndex="-1">note 4</a></li>
+          </ul>
+        </div>
+	</div>
+    <div class="row-fluid">
+        <div class="span6">
+            <section class="well well-small">
+                <span style="-webkit-user-modify: read-write-plaintext-only">
+                  Look I'm in well
+                </span>
+                  <span style="-webkit-user-modify: read-only" tabIndex="0">DON'T Edit</span>
+                  <span class="label label-default" tabIndex="0">HJ1</span>
+                  <img width="20px" height="20px" src="nowhere.jpg" tabIndex="0">
+                <span style="-webkit-user-modify: read-write-plaintext-only">
+                  いろはにほへと。
+                </span>
+                <hr>
+                <span style="-webkit-user-modify: read-write-plaintext-only">
+                  いろはにほへと。
+                </span>
+            </section>
+        </div>
+        <div class="span6">
+            <div class="well well-small">
+            bbb
+            <hr>
+            aaaa
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
