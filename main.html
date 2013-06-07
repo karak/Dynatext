@@ -147,17 +147,28 @@ h1.header-normal {
         <div class="span6">
           <div class="row-fluid">
               <ul class="nav nav-pills">
-                <li class="active"><a href="#"><i class="icon-th" style="margin-right:0.125em"></i>Docs</a></li>
-                <li class><a href="#"><i class="icon-check" style="margin-right:0.125em"></i>Todo</a></li>
+                <li class="active"><a href="#tab-breakdown" data-toggle="tab"><i class="icon-th" style="margin-right:0.125em"></i>Breakdown</a></li>
+                <li class><a href="#tab-consider" data-toggle="tab"><i class="icon-tasks" style="margin-right:0.125em"></i>Consider</a></li>
               </ul>
-          </div>
-          <div class="row-fluid">
-            <div class="tile tile-action"><i class="icon-plus"></i>New ...</div>
-            <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
-            <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
-            <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
-            <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
-            <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
+              <div class="tab-content">
+                  <div class="tab-pane active" id="tab-breakdown">
+                    <div class="tile tile-action"><i class="icon-plus"></i>New ...</div>
+                    <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
+                    <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
+                    <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
+                    <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
+                    <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
+                  </div>
+                  <div class="tab-pane" id="tab-consider">
+	                  <ul class="nav nav-list">
+                      	<li><a href="#consider-item-1"><i class="icon-exclamation-sign"></i>参考資料がない<i class="icon-chevron-right pull-right"></i></a></li>
+                      	<li><a href="#consider-item-2"><i class="icon-exclamation-sign"></i>資料を買うお金がない<i class="icon-chevron-right pull-right"></i></a></li>
+                      	<li><a href="#consider-item-3"><i class="icon-ok-circle"></i>大学図書館を探してみよう<i class="icon-chevron-right pull-right"></i></a></li>
+                        <!-- TODO: icon-bulb -->
+                        <li><a href="#consider-item-4"><i class="icon-question-sign"></i>どこの図書館がよいのか<i class="icon-chevron-right pull-right"></i></a></li>
+                      </ul>
+                  </div>
+              </div>
           </div>
         </div>
     </div>
