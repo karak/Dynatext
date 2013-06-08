@@ -9,17 +9,34 @@
 <script type="text/javascript" src="js/jquery-2.0.2.min.js"></script>
 <script type="text/javascript" src="js/knockout-2.2.1.js"></script>
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/db.js"></script>
 <script type="text/javascript">
 
-function DocumentViewModel() {
-	this.title = ko.observable('My great research');
-	this.abstract = ko.observable('コンピュータ科学の世界で何かものすごい発見をして\n四十歳までにチューリング賞をもらう');
+function ProductionViewModel(data) {
+  this.id = data.id,
+	this.title = ko.observable(data.title);
+	this.synopsis = ko.observable(data.synopsis);
 }
 
 $(function () {
-ko.applyBindings(
-	new DocumentViewModel(), 
-	document.getElementById('editor'));
+var db = new Database();
+
+db.open().then(function () {
+  //inject test data once
+  /*
+  var reqSave = db.productions.save({
+    id: 1,
+    title: 'Dynatext',
+    synopsis: '成果物としてのテキストを中心にした作業環境を提供するソフトウェアを作る。'
+  });
+  return;
+  */
+  db.productions.find(1).then(function (production) {
+    ko.applyBindings(
+    	new ProductionViewModel(production), 
+    	document.getElementById('editor'));
+    });
+  });
 });
 </script>
 <style type="text/css">
@@ -70,6 +87,16 @@ h1.header-normal {
   opacity: 1.0;
 }
 
+.nav.nav-list.nav-list-sub {
+   margin-left:0;
+   padding-left:0;
+   padding-right:0;
+   list-style-type:none
+}
+
+.nav.nav-list.nav-list-sub > li > a {
+  padding-left: 30px;
+}
 </style>
 </head>
 
@@ -92,7 +119,7 @@ h1.header-normal {
         <div class="span12">
             <div id="editor">
                 <h1 class="header-normal" data-bind="text:title"></h1>
-                <div class="plaintext" data-bind="text: abstract"></div>
+                <div class="plaintext" data-bind="text: synopsis"></div>
             </div>
         </div>
     </div>
@@ -147,11 +174,12 @@ h1.header-normal {
         <div class="span6">
           <div class="row-fluid">
               <ul class="nav nav-pills">
-                <li class="active"><a href="#tab-breakdown" data-toggle="tab"><i class="icon-th" style="margin-right:0.125em"></i>Breakdown</a></li>
-                <li class><a href="#tab-consider" data-toggle="tab"><i class="icon-tasks" style="margin-right:0.125em"></i>Consider</a></li>
+                <!-- Breakdown はそれぞれの文書片に、Discussion は Task にひもづく -->
+                <li class><a href="#tab-breakdown" data-toggle="tab"><i class="icon-th" style="margin-right:0.125em"></i>Breakdown</a></li>
+                <li class="active"><a href="#tab-discussion" data-toggle="tab"><i class="icon-tasks" style="margin-right:0.125em"></i>Discussion</a></li>
               </ul>
               <div class="tab-content">
-                  <div class="tab-pane active" id="tab-breakdown">
+                  <div class="tab-pane" id="tab-breakdown">
                     <div class="tile tile-action"><i class="icon-plus"></i>New ...</div>
                     <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
                     <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
@@ -159,13 +187,22 @@ h1.header-normal {
                     <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
                     <div class="tile tile-action"><i class="icon-chevron-right"></i>XXX</div>
                   </div>
-                  <div class="tab-pane" id="tab-consider">
+                  <div class="tab-pane active" id="tab-discussion">
 	                  <ul class="nav nav-list">
-                      	<li><a href="#consider-item-1"><i class="icon-exclamation-sign"></i>参考資料がない<i class="icon-chevron-right pull-right"></i></a></li>
-                      	<li><a href="#consider-item-2"><i class="icon-exclamation-sign"></i>資料を買うお金がない<i class="icon-chevron-right pull-right"></i></a></li>
-                      	<li><a href="#consider-item-3"><i class="icon-ok-circle"></i>大学図書館を探してみよう<i class="icon-chevron-right pull-right"></i></a></li>
+                      	<li><a href="#discussion-item-1"><i class="icon-exclamation-sign"></i>参考資料がない<i class="icon-chevron-right pull-right"></i></a></li>
+                      	<li><a href="#discussion-item-2"><i class="icon-exclamation-sign"></i>資料を買うお金がない<i class="icon-chevron-right pull-right"></i></a></li>
+                        <!-- inspiration -->
+                      	<li><a href="#discussion-item-3"><i class="icon-arrow-right"></i>大学図書館を探してみよう<i class="icon-chevron-right pull-right"></i></a></li>
                         <!-- TODO: icon-bulb -->
-                        <li><a href="#consider-item-4"><i class="icon-question-sign"></i>どこの図書館がよいのか<i class="icon-chevron-right pull-right"></i></a></li>
+                        <!-- question and 1 answer -->
+                        <li><a href="#discussion-item-4"><i class="icon-question-sign"></i>命名は？<i class="icon-chevron-right pull-right"></i></a></li>
+                          <ul class="nav nav-list nav-list-sub">
+                            <li><a href="#"><i class="icon-arrow-right"></i><s>Writer's studio</s><i class="icon-chevron-right pull-right"></i></a></li>
+                            <li><a href="#"><i class="icon-arrow-right"></i>Wratlier=Writer's atlierはどうか<i class="icon-chevron-right pull-right"></i></a></li>
+                          </ul>
+                        <li>
+                          <a href="#discussion-item-3"><i class="icon-check"></i>憶えやすいか<i class="icon-chevron-right pull-right"></i></a>
+                        </li>
                       </ul>
                   </div>
               </div>
