@@ -12,16 +12,32 @@
 <script type="text/javascript" src="js/db.js"></script>
 <script type="text/javascript">
 
-function ProductionViewModel(data) {
-  this.id = data.id,
-	this.title = ko.observable(data.title);
-	this.synopsis = ko.observable(data.synopsis);
+/********************************/
+/* Production model             */
+/********************************/
+var ProductionModel = function (data) {
+  var self = this;
+  self.id = data.id;
+  self.title = ko.observable(data.title);
+  self.synopsis = ko.observable(data.synopsis);
+};
+
+/********************************/
+
+function ProductionViewModel(model) {
+  $.extend(this, model);
 }
 
-$(function () {
-var db = new Database();
+/********************************/
 
-db.open().then(function () {
+(function () {
+var repo = new Repository({
+  'productions': ProductionModel
+});
+
+$(function () {
+
+repo.open().then(function () {
   //inject test data once
   /*
   var reqSave = db.productions.save({
@@ -31,13 +47,15 @@ db.open().then(function () {
   });
   return;
   */
-  db.productions.find(1).then(function (production) {
+  repo.productions.load(1).then(function (productionModel) {
     ko.applyBindings(
-    	new ProductionViewModel(production), 
+    	new ProductionViewModel(productionModel), 
     	document.getElementById('editor'));
     });
   });
 });
+
+} ());
 </script>
 <style type="text/css">
 body {
