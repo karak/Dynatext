@@ -20,7 +20,62 @@ var ProductionModel = function (data) {
   self.id = data.id;
   self.title = ko.observable(data.title);
   self.synopsis = ko.observable(data.synopsis);
+  self.activities = ko.observableArray();
 };
+
+//TODO: ProductionModel.getData
+
+var ActivityModel = function (data) {
+  var self = this;
+  self.id = data.id;
+  self.concerns = ko.observableArray(data.concerns);
+};
+
+var DocumentModel = function (data) {
+  var self = this;
+  self.id = data.id;
+  self.content = ko.observable(data.content);
+};
+
+/*
+var DocumentModelRef = function (repo, key) {
+  var self = this;
+  self._repo = repo;
+  self._loaded = false;
+  self._model = null;
+  self._key = key;
+};
+
+DocumentModelRef.prototype.reload = function () {
+  var self = this;
+  var d = new $.Deferred();
+  var req = this._repo.documents.load(this._key);
+
+  req.done(function (model) {
+    self._model = model;
+    self._loaded = true;
+    d.resolve(model);
+  });
+
+  req.fail(function (e) {
+    d.reject(e);
+  });
+
+  return d.promise();
+};
+
+DocumentModelRef.prototype.fetch = function () {
+  if (this._loaded) {
+    var d = new $.Deferred();
+    setTimeout(function () { d.resolve(this._model); }, 0);
+    return d.promise();
+  } else {
+    return this.reload();
+  }
+};
+
+$.extend(DocumentModelRef, DocumentModel);
+*/
 
 /********************************/
 
@@ -30,24 +85,55 @@ function ProductionViewModel(model) {
 
 /********************************/
 
+//inject test data once
+/*
+(function () {
+
+var db = new DatabaseConnection();
+db.open().then(function () {
+  var reqSave = db.store('productions').save({
+    id: 1,
+    title: 'Dynatext',
+    synopsis: '成果物としてのテキストを中心にした作業環境を提供するソフトウェアを作る。'
+  });
+  
+  var reqSave = db.store('activities').save({
+    id: 1,
+    productionId: 1,
+    concerns: [{
+      type: 'ref',
+      documentId: 1
+    }, {
+      type: 'embed',
+      content: '覚え書き'
+    }]
+  });
+
+  var reqSave = db.store('documents').save({
+    id: 1,
+    productionId: 1,
+    title: 'ほげ',
+    content: 'いろはにほへと¥nちりぬるお'
+  });
+});
+
+} ());
+*/
+
+/********************************/
+
 (function () {
 var repo = new Repository({
-  'productions': ProductionModel
+  'productions': ProductionModel,
+  'activities': ActivityModel,
+  'documents': DocumentModel
 });
 
 $(function () {
 
 repo.open().then(function () {
-  //inject test data once
-  /*
-  var reqSave = db.productions.save({
-    id: 1,
-    title: 'Dynatext',
-    synopsis: '成果物としてのテキストを中心にした作業環境を提供するソフトウェアを作る。'
-  });
-  return;
-  */
   repo.productions.load(1).then(function (productionModel) {
+    //TODO: load activities
     ko.applyBindings(
     	new ProductionViewModel(productionModel), 
     	document.getElementById('editor'));

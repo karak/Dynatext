@@ -14,13 +14,17 @@ DatabaseConnection = function () {
 DatabaseConnection.prototype.open = function () {
 	var self = this;
 	var deferred = new Deferred();
-	var dbName = "test1", version = 2;
+	var dbName = "test1", version = 3;
 
 	var reqOpen = indexedDB.open(dbName, version);
 
-	function upgrade (db, newVersion) {
+	function upgrade (db, newVersion, oldVersion) {
 		//TODO: 外に出す
-		db.createObjectStore('productions', {keyPath: 'id', autoIncrement: false});
+		//db.createObjectStore('productions', {keyPath: 'id', autoIncrement: false});
+		var activityStore = db.createObjectStore('activities', {keyPath: 'id', autoIncrement: false});
+		activityStore.createIndex('productionId', 'productionId', {unique: false});
+		var docStore = db.createObjectStore('documents', {keyPath: 'id', autoIncrement: false});
+		docStore.createIndex('productionId', 'productionId', {unique: false});
 	}
 
 	reqOpen.onupgradeneeded = function (e) {
@@ -109,6 +113,41 @@ var Collection = function (conn, storeName, constructor) {
   this._conn = conn;
   this._storeName = storeName;
   this._constructor = constructor;
+  this._items = [];
+};
+
+Collection.prototype.find = function (key) {
+  var self = this;
+  var d;
+  if (key in self._items) {
+   	d = new $.Deferred();
+   	setTimeout(function () {
+	  d.resolve(self._items[key]);
+	}, 0);
+	return d.promise();
+  } else {
+  	return self.load(key);
+  }
+};
+
+Collection.prototype.save = function (model, options) {
+  var self = this;
+  var deferred = new $.Deferred();
+  var data = model.getData();
+  var req = self._conn.store(self._storeName).save(data, options);
+
+  req.done(function () {
+  	if (!data.key in self._items) {
+	    self._items[data.key] = model;
+	}
+    deferred.resolve(model);
+  });
+
+  req.fail(function (err) {
+    deferred.reject(err);
+  });
+
+  return deferred.promise();
 };
 
 Collection.prototype.load = function (key) {
@@ -117,8 +156,9 @@ Collection.prototype.load = function (key) {
   var req = self._conn.store(self._storeName).find(key);
 
   req.done(function (data) {
-    var obj = new self._constructor(data);
-    deferred.resolve(obj);
+    var model = new self._constructor(data);
+    self._items[key] = model;
+    deferred.resolve(model);
   });
 
   req.fail(function (err) {
