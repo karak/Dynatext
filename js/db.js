@@ -14,22 +14,23 @@ DatabaseConnection = function () {
 DatabaseConnection.prototype.open = function () {
 	var self = this;
 	var deferred = new Deferred();
-	var dbName = "test1", version = 3;
+	var dbName = "test1", version = 4;
 
 	var reqOpen = indexedDB.open(dbName, version);
 
 	function upgrade (db, newVersion, oldVersion) {
-		//TODO: 外に出す
-		//db.createObjectStore('productions', {keyPath: 'id', autoIncrement: false});
-		var activityStore = db.createObjectStore('activities', {keyPath: 'id', autoIncrement: false});
-		activityStore.createIndex('productionId', 'productionId', {unique: false});
-		var docStore = db.createObjectStore('documents', {keyPath: 'id', autoIncrement: false});
-		docStore.createIndex('productionId', 'productionId', {unique: false});
+		if (oldVersion < 1) {
+			db.createObjectStore('productions', {keyPath: 'id', autoIncrement: false});
+			var activityStore = db.createObjectStore('activities', {keyPath: 'id', autoIncrement: false});
+			activityStore.createIndex('productionId', 'productionId', {unique: false});
+			var docStore = db.createObjectStore('documents', {keyPath: 'id', autoIncrement: false});
+			docStore.createIndex('productionId', 'productionId', {unique: false});
+		}
 	}
 
 	reqOpen.onupgradeneeded = function (e) {
 		var db = this.result;
-		upgrade(db, version);
+		upgrade(db, e.newVersion, e.oldVersion);
 	};
 
 	reqOpen.onsuccess = function (e) {
@@ -37,8 +38,8 @@ DatabaseConnection.prototype.open = function () {
 		
 		//for IE10
 		if (!!db.setVersion) {
-			db.setVersion(version).onsuccess = function () {
-				upgrade(db, version);
+			db.setVersion(version).onsuccess = function (e) {
+				upgrade(db, version, db.version);
 			};
 		}
 		self._db = db;
@@ -53,12 +54,30 @@ DatabaseConnection.prototype.open = function () {
 	return deferred.promise();
 };
 
-DatabaseConnection.prototype.store = function (name) {
-	return new Store(this._db, name);
+DatabaseConnection.prototype.transaction = function (objectStoreNames, mode) {
+	return new Transaction(this._db, objectStoreNames, mode);
 }
 
-function Store(db, name) {
-	this._db = db;
+DatabaseConnection.prototype.store = function (name) { //easy API
+	var tx = this.transaction([name], 'readwrite');
+	return tx.store(name);
+}
+
+var Transaction = function (db, objectStoreNames, mode) {
+	var tx = db.transaction(objectStoreNames, mode);
+	var stores = {};
+	jQuery.each(objectStoreNames, function (i, name) {
+		stores[name] = new Store(tx, name);
+	});
+	this._stores = stores;
+};
+
+Transaction.prototype.store = function (storeName) {
+	return this._stores[storeName];
+};
+
+var Store = function(tx, name) {
+	this._tx = tx;
 	this._name = name;
 }
 
@@ -66,16 +85,15 @@ Store.prototype.save = function (data, options) {
 	options = options || {};
 	var self = this;
 	var deferred = new Deferred(function () {this.done(options.success); this.fail(options.error); });
-	var db = self._db;
-	var tx = options.transaction || db.transaction([self._name], 'readwrite');
-	tx.oncomplete = function () {
-		deferred.resolve();
+	var tx = self._tx;
+	var store = tx.objectStore(self._name);
+	var req = store.put(data);
+	req.onsuccess = function () {
+		deferred.resolve(req.result);
 	};
-	tx.onerror = function () {
+	req.onerror = function () {
 		deferred.reject();
 	};
-	var store = tx.objectStore(self._name);
-	store.put(data);
 	return deferred.promise();
 };
 
@@ -83,40 +101,78 @@ Store.prototype.find = function (key, options) {
 	options = options || {};
 	var self = this;
 	var deferred = new Deferred(function () {this.done(options.success); this.fail(options.error); });
-	var db = self._db;
-	var tx = options.transaction || db.transaction([self._name], 'readonly');
-	tx.oncomplete = function () {
-		deferred.resolve(reqGet.result);
+	var tx = self._tx;
+	var store = tx.objectStore(self._name);
+	var req = store.get(key);
+	req.onsuccess = function () {
+		deferred.resolve(req.result);
 	};
-	tx.onerror = function () {
+	req.onerror = function () {
 		deferred.reject();
 	};
-	var store = tx.objectStore(self._name);
-	var reqGet = store.get(key);
 	return deferred.promise();
 };
+
+Store.prototype.all = function (options) {
+	options = options || {};
+	var self = this;
+	var deferred = new Deferred(function () {this.done(options.success); this.fail(options.error); });
+	var tx = self._tx;
+	var store = tx.objectStore(self._name);
+	var req = store.getAll();
+	req.onsuccess = function () {
+		deferred.resolve(req.result);
+	};
+	req.onerror = function () {
+		deferred.reject();
+	};
+	return deferred.promise();
+};
+
+var emptyFn = function () {};
+
+Store.prototype.cursorByIndex = function (indexName, value, options) {
+	options = options || {};
+	var self = this;
+	var tx = self._tx;
+	var store = tx.objectStore(self._name);
+	var index = store.index(indexName);
+	var req = index.openCursor(IDBKeyRange.only(value), "next");
+	var onsuccess = options.success || emptyFn;
+	var onerror = options.error || emptyFn;
+	req.onsuccess = function (e) {
+		onsuccess.call(self, req.result);
+	};
+	req.onerror = function (err) {
+		onerror.call(self, err);
+	};
+};
+
 } ());
+
+
+
+/******************************** bellow O/I Mapping ********************************/
+
 
 var Repository;
 
 (function () {
-/********************************/
-/* Generic Repository           */
-/********************************/
 
 /**
- * @param {DatabaseConnection} conn
+ * @param {Array} itemsInMemory [i/o]
  * @param {String} storeName
  * @param {Function} constructor
+ * @param {Transaction} tx
  */
-var Collection = function (conn, storeName, constructor) {
-  this._conn = conn;
+var Collection = function (itemsInMemory, storeName, constructor, tx) {
   this._storeName = storeName;
   this._constructor = constructor;
-  this._items = [];
+  this._items = itemsInMemory;
+  this._tx = tx;
 };
 
-Collection.prototype.find = function (key) {
+Collection.prototype.find = function (tx, key) {
   var self = this;
   var d;
   if (key in self._items) {
@@ -126,7 +182,7 @@ Collection.prototype.find = function (key) {
 	}, 0);
 	return d.promise();
   } else {
-  	return self.load(key);
+  	return self.load(tx, key);
   }
 };
 
@@ -134,7 +190,7 @@ Collection.prototype.save = function (model, options) {
   var self = this;
   var deferred = new $.Deferred();
   var data = model.getData();
-  var req = self._conn.store(self._storeName).save(data, options);
+  var req = self._tx.store(self._storeName).save(data, options);
 
   req.done(function () {
   	if (!data.key in self._items) {
@@ -150,15 +206,16 @@ Collection.prototype.save = function (model, options) {
   return deferred.promise();
 };
 
-Collection.prototype.load = function (key) {
+Collection.prototype.load = function (key, f) {
   var self = this;
   var deferred = new $.Deferred();
-  var req = self._conn.store(self._storeName).find(key);
+  var req = self._tx.store(self._storeName).find(key);
 
   req.done(function (data) {
     var model = new self._constructor(data);
     self._items[key] = model;
-    deferred.resolve(model);
+	f.call(self, model);
+    deferred.resolve();
   });
 
   req.fail(function (err) {
@@ -168,19 +225,76 @@ Collection.prototype.load = function (key) {
   return deferred.promise();
 };
 
-//export
-Repository = function (collections) {
+Collection.prototype.eachByIndex = function (indexName, value, f) {
   var self = this;
-  var conn = new DatabaseConnection();
-  self._conn = conn;
+  var constructor = this._constructor;
+  var deferred = new $.Deferred();
+  var req = self._tx.store(self._storeName).cursorByIndex(indexName, value, {
+  	success: function (cursor) {
+		if (cursor) {
+			var key = cursor.primaryKey, 
+			    data = cursor.value,
+			    model;
+			if (key in self._items) {
+				model = self._items[key];
+				model.setData(data);
+			} else {
+				model = self._items[key] = new constructor(data);
+			}
+			f.call(self, model);
+			cursor.continue();
+		} else {
+			deferred.resolve();
+		}
+	},
+	error: function (err) {
+		deferred.reject(err);
+	}
+  });
+  
+  return deferred.promise();
+};
 
-  $.each(collections, function (name, constructor) {
-    self[name] = new Collection(conn, name, constructor);
+
+//export
+Repository = function (collectionConfig) {
+  var self = this;
+  self._conn = new DatabaseConnection();
+  self._collectionConfig = collectionConfig;
+  self._collectionCache = {};
+  $.each(collectionConfig, function (name) {
+	  self._collectionCache[name] = [];
   });
 };
 
 Repository.prototype.open = function () {
   return this._conn.open();
 };
+
+Repository.prototype.read = function () {
+	var collectionNames = Array.prototype.slice.call(arguments, 0, arguments.length - 1),
+	    callback = arguments[arguments.length - 1];
+	return this._transaction('readonly', collectionNames, callback);
+};
+
+Repository.prototype.readwrite = function () {
+	var collectionNames = Array.prototype.slice.call(arguments, 0, arguments.length - 1),
+	    callback = arguments[arguments.length - 1];
+	return this._transaction('readwrite', collectionNames, callback);
+};
+
+Repository.prototype._transaction = function (mode, collectionNames, callback) {
+	var self = this,
+	    objectStoreNames = collectionNames,
+	    tx,
+	    collections;
+	tx = self._conn.transaction(objectStoreNames, mode);
+	collections = {};
+	$.each(collectionNames, function (i, name) {
+		collections[name] = new Collection(self._collectionCache[name], name, self._collectionConfig[name], tx);
+	});
+	callback.apply(collections, []);
+};
+
 
 } ());

@@ -20,21 +20,28 @@ var ProductionModel = function (data) {
   self.id = data.id;
   self.title = ko.observable(data.title);
   self.synopsis = ko.observable(data.synopsis);
-  self.activities = ko.observableArray();
 };
 
-//TODO: ProductionModel.getData
+//TODO: ProductionModel.getData and update
 
 var ActivityModel = function (data) {
   var self = this;
   self.id = data.id;
+  self.productionId = ko.observable(data.productionId);
   self.concerns = ko.observableArray(data.concerns);
 };
 
 var DocumentModel = function (data) {
   var self = this;
   self.id = data.id;
+  self.productionId = ko.observable(data.productionId);
   self.content = ko.observable(data.content);
+};
+
+DocumentModel.prototype.setData = function (data) {
+  var self = this;
+  self.productionId(data.productionId);
+  self.concerns(data.concerns);
 };
 
 /*
@@ -86,7 +93,8 @@ function ProductionViewModel(model) {
 /********************************/
 
 //inject test data once
-/*
+
+	/*
 (function () {
 
 var db = new DatabaseConnection();
@@ -115,10 +123,18 @@ db.open().then(function () {
     title: 'ほげ',
     content: 'いろはにほへと¥nちりぬるお'
   });
+  
+  var reqSave = db.store('documents').save({
+    id: 2,
+    productionId: 1,
+    title: 'ほげほげ',
+    content: ''
+  });
 });
 
 } ());
-*/
+  */
+
 
 /********************************/
 
@@ -132,14 +148,25 @@ var repo = new Repository({
 $(function () {
 
 repo.open().then(function () {
-  repo.productions.load(1).then(function (productionModel) {
-    //TODO: load activities
-    ko.applyBindings(
-    	new ProductionViewModel(productionModel), 
-    	document.getElementById('editor'));
-    });
+  repo.read('productions', 'documents', function () {
+	  var col = this;
+	  var req1 = col.productions.load(1, function (productionModel) {
+		  var documents = [];
+		  var req2 = col.documents.eachByIndex('productionId', 1, function (documentModel) {
+			documents.push(documentModel);
+		  });
+		  
+		  req2.then(function () {
+			  productionModel.documents = ko.observableArray(documents);
+			  ko.applyBindings(
+				new ProductionViewModel(productionModel)
+			  );
+		  });
+	  });
   });
 });
+
+}); //jQuery.ready
 
 } ());
 </script>
@@ -256,6 +283,13 @@ h1.header-normal {
                 </li>
               </ul>
             </div>
+          </div>
+          <div class="row-fluid">
+          	<!-- ko foreach: documents -->
+            <section class="well well-small">
+            	<textarea data-bind="value: content" style="resize:none;"></textarea>
+            </section>
+          	<!-- /ko -->
           </div>
           <div class="row-fluid">
             <section class="well well-small">
