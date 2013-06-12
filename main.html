@@ -15,30 +15,51 @@
 /********************************/
 /* Production model             */
 /********************************/
-var ProductionModel = function (data) {
+var ProductionModel = function (repo, data) {
   var self = this;
+  self._repo = repo;
   self.id = data.id;
   self.title = ko.observable(data.title);
   self.synopsis = ko.observable(data.synopsis);
 };
 
-//TODO: ProductionModel.getData and update
+ProductionModel.prototype.getData = function () {
+  var self = this;
+  return {
+    id: self.id,
+    title: self.title(),
+    synopsis: self.synopsis()
+  };
+};
 
-var ActivityModel = function (data) {
+
+//TODO: ProductionModel#update
+
+var ActivityModel = function (repo, data) {
   var self = this;
   self.id = data.id;
   self.productionId = ko.observable(data.productionId);
   self.concerns = ko.observableArray(data.concerns);
 };
 
-var DocumentModel = function (data) {
+var DocumentModel = function (repo, data) {
   var self = this;
   self.id = data.id;
   self.productionId = ko.observable(data.productionId);
   self.content = ko.observable(data.content);
 };
 
-DocumentModel.prototype.setData = function (data) {
+DocumentModel.prototype.getData = function () {
+  var self = this;
+  return {
+    id: self.id,
+    productionId: self.productionId(),
+    content: self.content()
+  };
+};
+
+
+DocumentModel.prototype.setData = function (repo, data) {
   var self = this;
   self.productionId(data.productionId);
   self.concerns(data.concerns);
@@ -86,10 +107,61 @@ $.extend(DocumentModelRef, DocumentModel);
 
 /********************************/
 
-function ProductionViewModel(model) {
-  $.extend(this, model);
+var ProductionViewModel = function (repo, productionModel, relations) {
+  var self = this;
+  self._repo = repo;
+  self._model = productionModel;
+  self.title = productionModel.title;
+  self.synopsis = productionModel.synopsis;
+  self.documents = ko.observableArray(relations.documents); //TODO: class DocumentViewModel
+
+  self.saving = ko.observable(false);
+};
+
+ProductionViewModel.load = function (repo, id) {
+  var deferred = new $.Deferred();
+
+  repo.read('productions', 'documents', function () {
+    var col = this;
+    var req1 = col.productions.load(1, function (productionModel) {
+      var documents = [];
+      var req2 = col.documents.eachByIndex('productionId', 1, function (documentModel) {
+        documents.push(documentModel);
+      });
+
+      req2.done(function () {
+        deferred.resolve(new ProductionViewModel(repo, productionModel, { documents: documents }));
+      });
+
+      req2.fail(function (err) {
+        deferred.reject(err);
+      });
+    });
+
+    req1.fail(function (err) {
+      deferred.reject(err);
+    });
+  });
+
+  return deferred.promise();
 }
 
+ProductionViewModel.prototype.save = function () {
+  var self = this,
+      repo = this._repo,
+      productionModel = this._model;
+  self.saving(true);
+  try {
+    repo.readwrite('productions', 'documents', function (tx) {
+      tx.productions.save(productionModel);
+      $.each(self.documents(), function (i, documentModel) {
+        tx.documents.save(documentModel);
+      });
+    });
+  } finally {
+    self.saving(false);
+  }
+};
 /********************************/
 
 //inject test data once
@@ -148,21 +220,8 @@ var repo = new Repository({
 $(function () {
 
 repo.open().then(function () {
-  repo.read('productions', 'documents', function () {
-	  var col = this;
-	  var req1 = col.productions.load(1, function (productionModel) {
-		  var documents = [];
-		  var req2 = col.documents.eachByIndex('productionId', 1, function (documentModel) {
-			documents.push(documentModel);
-		  });
-		  
-		  req2.then(function () {
-			  productionModel.documents = ko.observableArray(documents);
-			  ko.applyBindings(
-				new ProductionViewModel(productionModel)
-			  );
-		  });
-	  });
+  ProductionViewModel.load(repo, 1).then(function (viewModel) {
+	  ko.applyBindings(viewModel);
   });
 });
 
@@ -234,18 +293,10 @@ h1.header-normal {
 <body>
 <div class="navbar navbar-inverse navbar-static-top">
 	<div class="navbar-inner">
-    </div>
+    <button class="btn" data-bind="click: save, disable: saving">Save</button>
+  </div>
 </div>
 <div class="container-fluid">
-    <div class="row-fluid">
-        <div class="span12">
-            <ul class="breadcrumb">
-              <li><a href="#">Home</a> <span class="divider">/</span></li>
-              <li><a href="#">Library</a> <span class="divider">/</span></li>
-              <li class="active">Data</li>
-            </ul>
-        </div>
-    </div>
     <div class="row-fluid" style="margin-bottom: 8mm">
         <div class="span12">
             <div id="editor">

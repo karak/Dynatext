@@ -165,9 +165,9 @@ var Repository;
  * @param {Function} constructor
  * @param {Transaction} tx
  */
-var Collection = function (itemsInMemory, storeName, constructor, tx) {
+var Collection = function (itemsInMemory, storeName, createModel, tx) {
   this._storeName = storeName;
-  this._constructor = constructor;
+  this._createModel = createModel;
   this._items = itemsInMemory;
   this._tx = tx;
 };
@@ -212,7 +212,7 @@ Collection.prototype.load = function (key, f) {
   var req = self._tx.store(self._storeName).find(key);
 
   req.done(function (data) {
-    var model = new self._constructor(data);
+    var model = new self._createModel(data);
     self._items[key] = model;
 	f.call(self, model);
     deferred.resolve();
@@ -227,7 +227,7 @@ Collection.prototype.load = function (key, f) {
 
 Collection.prototype.eachByIndex = function (indexName, value, f) {
   var self = this;
-  var constructor = this._constructor;
+  var createModel = this._createModel;
   var deferred = new $.Deferred();
   var req = self._tx.store(self._storeName).cursorByIndex(indexName, value, {
   	success: function (cursor) {
@@ -239,7 +239,7 @@ Collection.prototype.eachByIndex = function (indexName, value, f) {
 				model = self._items[key];
 				model.setData(data);
 			} else {
-				model = self._items[key] = new constructor(data);
+				model = self._items[key] = createModel(data);
 			}
 			f.call(self, model);
 			cursor.continue();
@@ -291,9 +291,16 @@ Repository.prototype._transaction = function (mode, collectionNames, callback) {
 	tx = self._conn.transaction(objectStoreNames, mode);
 	collections = {};
 	$.each(collectionNames, function (i, name) {
-		collections[name] = new Collection(self._collectionCache[name], name, self._collectionConfig[name], tx);
+		collections[name] = new Collection(
+      self._collectionCache[name],
+      name, 
+      function (data) {
+        var constructor = self._collectionConfig[name];
+        return new constructor(self, data);
+      },
+      tx);
 	});
-	callback.apply(collections, []);
+	callback.apply(collections, [collections]);
 };
 
 
